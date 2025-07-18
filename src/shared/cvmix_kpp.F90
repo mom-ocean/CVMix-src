@@ -3532,7 +3532,7 @@ contains
 ! until the boundary layer depth, ERdepth > 0 kER_depth are determined, OR
 ! if there is no viable solution  ERdepth = -1 , kER_depth=-1
 
-  subroutine cvmix_kpp_compute_ER_depth( z_inter,Nsq,deltaRho,OBL_depth, &
+  subroutine cvmix_kpp_compute_ER_depth( z_inter,Nsq,OBL_depth, &
            uStar,Bsfc_ns,surfBuoy,StokesXI,BEdE_ER,ERdepth,  &
            CVMix_kpp_params_user)
 
@@ -3542,7 +3542,6 @@ contains
                  Nsq                            ! Column of Buoyancy Gradients at interfaces
   real(cvmix_r8), dimension(:), intent(in) :: &
                  OBL_depth,                   & ! Array of assumed OBL depths >0 at cell centers [m]
-                 deltaRho,                    & ! Column of Local density difference from surface at centers [kg m-3]
                  surfBuoy,                    & ! surface Buoyancy flux surface to OBL_depth
                  StokesXI,                    & ! Stokes similarity parameter given OBL_depth
                  BEdE_ER                        ! Parameterized Entrainment Rule given OBL_depth
