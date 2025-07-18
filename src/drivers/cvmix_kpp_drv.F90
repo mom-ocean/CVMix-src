@@ -705,8 +705,8 @@ Subroutine cvmix_kpp_driver()
                                     vSbar=vSbar,                              &
                                     uS_SL=cvmix_one,                         &
                                     vS_SL=cvmix_one,                         &
-                                    uSbar_SL=cvmix_one,                      &
-                                    vSbar_SL=cvmix_one,                      &
+                                    uSb_SL=cvmix_one,                      &
+                                    vSb_SL=cvmix_one,                      &
                                     StokesXI=StokesXI)
     call cvmix_kpp_compute_OBL_depth(Ri_bulk, zw_iface, OBL_depth7,           &
                                      kOBL_depth, zt, surf_fric=cvmix_one,     &
