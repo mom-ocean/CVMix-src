@@ -3434,7 +3434,7 @@ contains
     taux0   = ustar**2 * cos(omega_w2x)
     tauy0   = ustar**2 * sin(omega_w2x)
     Stk0    = sqrt( uS(1)**2 + vS(1)**2 )
-    BLDepth = SLDepth / CVmix_kpp_params_in%surf_layer_ext
+    BLdepth = SLDepth / CVmix_kpp_params_in%surf_layer_ext
 
     ! Parameterized Buoyancy production of TKE
     PBfact = 0.0893759_cvmix_r8

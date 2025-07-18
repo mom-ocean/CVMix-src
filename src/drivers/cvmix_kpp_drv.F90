@@ -697,7 +697,7 @@ Subroutine cvmix_kpp_driver()
     call cvmix_kpp_compute_StokesXi(zi=zt,                                    &
                                     zk=zw_iface,                              &
                                     kSL=(nlev7+1)/2,                          &
-                                    SLDepth=cvmix_zero,                       &
+                                    SLDepth=cvmix_one,                        &
                                     surf_buoy_force=cvmix_one,                &
                                     surfBuoy_NS=cvmix_one,                    &
                                     surf_fric_vel=cvmix_one,                  &
