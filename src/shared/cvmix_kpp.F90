@@ -3410,11 +3410,15 @@ contains
 
 ! !LOCAL PARAMETERS:
     type(cvmix_kpp_params_type),  pointer :: CVmix_kpp_params_in
-    real(cvmix_r8) :: PU, PS , PB                                       ! surface layer TKE production terms
+    real(cvmix_r8), parameter :: CempCGm = 3.5_cvmix_r8  ! Coeff. relating cross-shear mtm flux to sfc stress [nondim]
+    real(cvmix_r8), parameter :: CempCGs = 4.7_cvmix_r8  ! Coeff. relating non-local scalar flux to sfc flux  [nondim]
+    real(cvmix_r8), parameter :: Cu = 0.023_cvmix_r8     ! TKE shear production weight [nondim]
+    real(cvmix_r8), parameter :: Cs = 0.038_cvmix_r8     ! TKE Stokes production weight [nondim]
+    real(cvmix_r8), parameter :: Cb = 0.96_cvmix_r8      ! TKE buoyancy production weight [nondim]
+    real(cvmix_r8) :: PBfact                  ! Ratio of TKE surface layer production to w*^3 [nondim]
+    real(cvmix_r8) :: PU, PS , PB             ! Surface layer TKE production terms increments [m3 s-3]
     real(cvmix_r8) :: ustar, delH, delU, delV, omega_E2x, cosOmega, sinOmega
     real(cvmix_r8) :: BLDepth, TauMAG, TauCG, TauDG, taux0, tauy0, Stk0 , Pinc
-    real(cvmix_r8) :: PBfact , CempCGm, CempCGs                         ! Empirical constants
-    real(cvmix_r8) :: Cu, Cs, Cb                                        ! Entrainment Rule coefficients
     real(cvmix_r8) :: dtop, tauEtop, tauxtop, tauytop                   ! Cell top values
     real(cvmix_r8) :: dbot, tauEbot, tauxbot, tauybot, sigbot, Gbot     ! Cell bottom values
     integer        :: ktmp                                              ! vertical loop
@@ -3423,12 +3427,6 @@ contains
     if (present(CVmix_kpp_params_user)) then
       CVmix_kpp_params_in => CVmix_kpp_params_user
     end if
-
-    Cu = 0.023_cvmix_r8
-    Cs = 0.038_cvmix_r8
-    Cb = 0.96_cvmix_r8
-    CempCGm = 3.5_cvmix_r8
-    CempCGs = 4.7_cvmix_r8
 
     ustar   = MAX( surf_fric_vel , 1.e-4_cvmix_r8 )   ! > 0
     taux0   = ustar**2 * cos(omega_w2x)
@@ -3515,10 +3513,10 @@ contains
     else
       StokesXI = cvmix_zero
     endif
-      BEdE_ER  = MAX( ( Cu*PU + Cs*PS + Cb*PB ) , cvmix_zero )
-      PU_TKE   = PU
-      PS_TKE   = PS
-      PB_TKE   = PB
+    BEdE_ER  = MAX( ( Cu*PU + Cs*PS + Cb*PB ) , cvmix_zero )
+    PU_TKE   = PU
+    PS_TKE   = PS
+    PB_TKE   = PB
 
 !EOC
 
@@ -3558,9 +3556,9 @@ contains
 
   ! Local variables
   integer ::  iz, nlev , kbl , kinv
-  real(cvmix_r8), dimension(size(OBL_depth)+1) :: zdepth, BEdE, BEnt   ! surface then cell-centers<0
+  real(cvmix_r8), dimension(size(OBL_depth)+1) :: zdepth, BEdE ! surface then cell-centers<0
   real(cvmix_r8), dimension(size(z_inter)+1)   :: sigma, Bflux   ! interface values
-  real(cvmix_r8) :: ws_i, Cemp_Rs, Gsig_i, Fdelrho, Bnonlocal, sigE, maxNsq
+  real(cvmix_r8) :: ws_i, Cemp_Rs, Gsig_i, Fdelrho, Bnonlocal, sigE, maxNsq, BEnt
   real(kind=cvmix_r8), dimension(4)            :: coeffs
   type(cvmix_kpp_params_type), pointer :: CVmix_kpp_params_in
 
@@ -3571,10 +3569,7 @@ contains
 
   nlev      = size(OBL_depth)
   Cemp_Rs   = 4.7_cvmix_r8
-!  Gat1      = cvmix_zero
   Fdelrho   = cvmix_one
-! kinv      = MAXLOC( Nsq )      ! interface index of maximum stratification, N2>0 (inversion)
-! maxNsq    = Nsq( kinv )
   maxNsq    = 0.0
   do kbl = 2, nlev+1
    if ( Nsq(kbl) > maxNsq ) then
@@ -3588,11 +3583,9 @@ contains
 !                             Set surface values
   zdepth(1) = cvmix_zero
   BEdE(1)   = cvmix_zero
-  BEnt(1)   = cvmix_zero
   sigma(:)  = cvmix_zero
   Bflux(1)  = Bsfc_ns    ! non-solar surface buoyancy boundary condition for all kbl
 !                             Set OBL_depth(1)=top cell center values
-  BEnt(1)   = cvmix_zero
   zdepth(2) = -OBL_depth(1)
   BEdE(2)   = cvmix_zero
 
@@ -3617,9 +3610,9 @@ contains
 
       ! find the peak
       if ( (Bflux(iz+1) > Bflux(iz+2)) .and. (Bflux(iz+1) .ge. Bflux(iz)) .and. (Bflux(iz+1) > cvmix_zero) ) then
-        call cvmix_kpp_quad_fit(iz, sigma, Bflux, sigE, BEnt(kbl+1) )
+        call cvmix_kpp_quad_fit(iz, sigma, Bflux, sigE, BEnt )
         Fdelrho = cvmix_one
-        BEdE(kbl+1) = Fdelrho*BEnt(kbl+1)*sigE*OBL_depth(kbl)
+        BEdE(kbl+1) = Fdelrho*BEnt*sigE*OBL_depth(kbl)
         exit ! No exit leaves BEdE(kbl+1) = cvmix_zero
       endif
     enddo
