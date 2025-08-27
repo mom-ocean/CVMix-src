@@ -3609,7 +3609,7 @@ contains
 
       ! find the peak
       if ( (Bflux(iz+1) .gt. Bflux(iz+2)) .and. (Bflux(iz+1) .ge. Bflux(iz)) .and. &
-           (Bflux(iz+1).gt. cvmix_zero) ) then
+           (Bflux(iz+1) .gt. cvmix_zero) ) then
         ! Find sigE (the root of the derivative of the quadratic polynomial
         ! interpolating (sigma(i), Bflux(i)) for i in [iz, iz+1, iz+2])
         ! Also find BEnt (value of quadratic at sigE)
