@@ -23,6 +23,7 @@
 ! !USES:
 
   use cvmix_kinds_and_types, only : cvmix_r8,                                 &
+                                    cvmix_zero,                               &
                                     cvmix_one
 
 !EOP
@@ -47,16 +48,21 @@
   public :: cvmix_math_cubic_root_find
   public :: cvmix_math_evaluate_cubic
 
+  interface cvmix_math_poly_interp
+    module procedure linear_through_cubic_poly_interp
+    module procedure traditional_quad_poly_interp
+  end interface cvmix_math_poly_interp
+
 !EOP
 
   contains
 
 !BOP
 
-! !IROUTINE: cvmix_math_poly_interp
+! !IROUTINE: linear_through_cubic_poly_interp
 ! !INTERFACE:
 
-  subroutine cvmix_math_poly_interp(coeffs, interp_type, x, y, x0, y0)
+  subroutine linear_through_cubic_poly_interp(coeffs, interp_type, x, y, x0, y0)
 
 ! !DESCRIPTION:
 !  Given (x(1), y(1)), (x(2), y(2)), and possibly (x0, y0), compute coeffs =
@@ -178,14 +184,97 @@
 
 !EOC
 
-  end subroutine cvmix_math_poly_interp
+  end subroutine linear_through_cubic_poly_interp
+
+!BOP
+
+! !IROUTINE: traditional_quad_poly_interp
+! !INTERFACE:
+
+  subroutine traditional_quad_poly_interp(coeffs, x, y)
+
+! !DESCRIPTION:
+!  Given (x(1), y(1)), (x(2), y(2)), and (x(3), y(3)), compute coeffs =
+!  $(/a_0, a_1, a_2, a_3=0/)$ such that the quadratic polynomial $f(x) = \sum a_nx^n$
+!  interpolates those three points. I.e. $f(x(1)) = y(1)$, $f(x(2)) = y(2)$, and
+!  $f(x(3)) = y(3)$.
+!  \\
+!  \\
+
+! !INPUT PARAMETERS:
+    real(cvmix_r8), dimension(3), intent(in)    :: x, y
+! !OUTPUT PARAMETERS:
+    real(cvmix_r8), dimension(4), intent(inout) :: coeffs
+
+!EOP
+!BOC
+
+    ! Local variables
+    real(cvmix_r8) :: det, inv_det
+
+    coeffs(:) = cvmix_zero
+    det = -(x(3) - x(2)) * (x(3) - x(1)) * (x(2) - x(1))
+    ! Return all 0s if any two points are the same
+    if (det .eq. cvmix_zero) then
+      return
+    endif
+    ! Given a matrix
+    !
+    !     [x(1)*x(1) x(1) 1]
+    ! A = [x(2)*x(2) x(2) 1]
+    !     [x(3)*x(3) x(3) 1]
+    !
+    ! Want coeff(1), coeff(2), and coeff(3) such that
+    !
+    !     [coeff(3)]   [y(1)]
+    ! A * [coeff(2)] = [y(2)]
+    !     [coeff(1)]   [y(3)]
+    !
+    ! The inverse is
+    !         1    [      (x(2)-x(3))           -(x(1)-x(3))            (x(1)-x(2))     ]
+    ! Ainv = --- * [-(x(2)*x(2)-x(3)*x(3))  (x(1)*x(1)-x(3)*x(3)) -(x(1)*x(1)-x(2)*x(2))]
+    !        det   [ x(2)*x(3)*(x(2)-x(3)) -x(1)*x(3)*(x(1)-x(3))  x(1)*x(2)*(x(1)-x(2))]
+    !
+    ! And the coefficients of interpolating polynomial is the above is
+    !
+    ! [coeff(3)]          [y(1)]
+    ! [coeff(2)] = Ainv * [y(2)]
+    ! [coeff(1)]          [y(3)]
+    inv_det = cvmix_one / det
+    coeffs(3) = inv_det * ((x(2)-x(3))*y(1) - (x(1)-x(3))*y(2) + (x(1)-x(2))*y(3))
+    coeffs(2) = inv_det * (-(x(2)*x(2)-x(3)*x(3))*y(1) + (x(1)*x(1)-x(3)*x(3))*y(2) -(x(1)*x(1)-x(2)*x(2))*y(3))
+    ! Now that we know coeffs(3) and coeffs(2), we can determine coeffs(1) by evaluation:
+    ! coeffs(1) + coeffs(2)*x(1) + coeffs(3)*x(1)*x(1) = y(1)
+    ! coeffs(1) = y(1) - coeffs(2)*x(1) - coeffs(3)*x(1)*x(1)
+    coeffs(1) = y(1) - coeffs(2)*x(1) - coeffs(3)*x(1)*x(1)
+
+!EOC
+
+  end subroutine traditional_quad_poly_interp
+
+!BOP
+
+! !IROUTINE: cvmix_math_cubic_root_find
+! !INTERFACE:
 
   function cvmix_math_cubic_root_find(coeffs, x0)
 
+! !DESCRIPTION:
+!  Use Newton's Method to find a root of $f(x) = a_0 + a_1x + a_2x^2 + a_3x^3$
+!\\
+!\\
+
+! !INPUT PARAMETERS:
     real(cvmix_r8), dimension(4), intent(in) :: coeffs
     real(cvmix_r8),               intent(in) :: x0
 
+! !OUTPUT PARAMETERS:
     real(cvmix_r8) :: cvmix_math_cubic_root_find
+
+!EOP
+!BOC
+
+    ! Local Variables
     real(cvmix_r8) :: fun_val, root, slope
     integer :: it_cnt
 
@@ -199,6 +288,8 @@
       fun_val = coeffs(4)*(root**3)+coeffs(3)*(root**2)+coeffs(2)*root+coeffs(1)
     end do
     cvmix_math_cubic_root_find = root
+
+!EOC
 
   end function cvmix_math_cubic_root_find
 
@@ -243,6 +334,8 @@
       if (present(fprime).and.(i.gt.2)) &
         fprime = fprime + coeffs(i)*real(i-1,cvmix_r8)*(x_in**(i-2))
     end do
+
+!EOC
 
   end function cvmix_math_evaluate_cubic
 

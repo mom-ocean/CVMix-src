@@ -89,7 +89,6 @@
   public :: cvmix_kpp_EFactor_model
   public :: cvmix_kpp_ustokes_SL_model
   public :: cvmix_kpp_compute_ER_depth
-  public :: cvmix_kpp_quad_fit
 
   interface cvmix_coeffs_kpp
     module procedure cvmix_coeffs_kpp_low
@@ -3609,8 +3608,22 @@ contains
       endif
 
       ! find the peak
-      if ( (Bflux(iz+1) > Bflux(iz+2)) .and. (Bflux(iz+1) .ge. Bflux(iz)) .and. (Bflux(iz+1) > cvmix_zero) ) then
-        call cvmix_kpp_quad_fit(iz, sigma, Bflux, sigE, BEnt )
+      if ( (Bflux(iz+1) .gt. Bflux(iz+2)) .and. (Bflux(iz+1) .ge. Bflux(iz)) .and. &
+           (Bflux(iz+1).gt. cvmix_zero) ) then
+        ! Find sigE (the root of the derivative of the quadratic polynomial
+        ! interpolating (sigma(i), Bflux(i)) for i in [iz, iz+1, iz+2])
+        ! Also find BEnt (value of quadratic at sigE)
+        call cvmix_math_poly_interp(coeffs, sigma(iz:iz+2), Bflux(iz:iz+2))
+        ! coeffs(3) = 0 => sigma(iz), sigma(iz+1), and sigma(iz+2) are not unique values
+        ! so there interpolation returned a linear equation. In this case we select
+        ! (sigma(iz+1), Bflux(iz+1)) as the maximum.
+        if (coeffs(3) .eq. cvmix_zero) then
+          sigE = sigma(iz+1)
+          Bent = Bflux(iz+1)
+        else
+          sigE = -0.5_cvmix_r8 * (coeffs(2) / coeffs(3))
+          Bent = cvmix_math_evaluate_cubic(coeffs, sigE)
+        endif
         Fdelrho = cvmix_one
         BEdE(kbl+1) = Fdelrho*BEnt*sigE*OBL_depth(kbl)
         exit ! No exit leaves BEdE(kbl+1) = cvmix_zero
@@ -3634,37 +3647,5 @@ contains
 
   end subroutine cvmix_kpp_compute_ER_depth
 
-
-! !DESCRIPTION:
-! Find maximum y0, at x0; given values of x and y at i, i+1 and i+2
-
-  subroutine  cvmix_kpp_quad_fit( i, x, y, x0, y0 )
-
-! !INPUT PARAMETERS:
-    real(cvmix_r8), dimension(:), intent(in)  ::   x, y      !<
-    integer,                      intent(in)  ::   i         !<
-
-! !OUTPUT PARAMETERS:
-    real(cvmix_r8),               intent(out) ::  x0, y0     !<  quadratic fit extreme
-
-! !LOCAL PARAMETERS:
-    real(cvmix_r8) :: a , b, c                               !< y = a x^2 + b x + c
-
-    a = (x(i+1)-x(i)) * (x(i+2)*x(i+2) - x(i+1)*x(i+1)) - (x(i+2)-x(i+1)) * (x(i+1)*x(i+1) - x(i)*x(i))
-    if (a == 0.0) then
-      x0 = x(i+1)
-      y0 = y(i+1)
-    else
-      a = ( (x(i+1)-x(i)) * (y(i+2)-y(i+1)) -  (x(i+2)-x(i+1)) * (y(i+1)-y(i)) ) / a
-
-      b = ( (y(i+1) - y(i)) - a * ( x(i+1)*x(i+1) - x(i)*x(i) ) ) / (x(i+1)-x(i))
-
-      c = y(i) - a * x(i)*x(i) - b * x(i)
-
-      x0 = real(-0.5,cvmix_r8) * b / a
-      y0 = a * x0*x0 + b * x0 + c
-    endif
-
-  end subroutine  cvmix_kpp_quad_fit
 
 end module cvmix_kpp
