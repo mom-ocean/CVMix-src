@@ -62,7 +62,7 @@ Subroutine cvmix_kpp_driver()
   real(cvmix_r8) :: hmix1, hmix5, hmix7,  ri_crit, layer_thick1,              &
                     layer_thick4, layer_thick5, layer_thick7, OBL_depth4,     &
                     OBL_depth5, OBL_depth7, N, Nsqr
-  real(cvmix_r8) :: StokesXI
+  real(cvmix_r8) :: StokesXI, BEdE_ER, PU_TKE, PS_TKE, PB_TKE
   real(cvmix_r8) :: kOBL_depth, Bslope, Vslope
   real(cvmix_r8) :: sigma6, OBL_depth6, surf_buoy_force6, surf_fric_vel6,     &
                     vonkarman6, tao, rho0, grav, alpha, Qnonpen, Cp0,         &
@@ -690,11 +690,16 @@ Subroutine cvmix_kpp_driver()
              vSbar(nlev7), &
              source=cvmix_one)
     StokesXI = cvmix_one
+    BEdE_ER  = cvmix_one
+    PU_TKE  = cvmix_one
+    PS_TKE  = cvmix_one
+    PB_TKE  = cvmix_one
     call cvmix_kpp_compute_StokesXi(zi=zt,                                    &
                                     zk=zw_iface,                              &
                                     kSL=(nlev7+1)/2,                          &
-                                    SLDepth=cvmix_zero,                       &
+                                    SLDepth=cvmix_one,                        &
                                     surf_buoy_force=cvmix_one,                &
+                                    surfBuoy_NS=cvmix_one,                    &
                                     surf_fric_vel=cvmix_one,                  &
                                     omega_w2x=cvmix_one,                      &
                                     uE=ones,                                  &
@@ -703,11 +708,15 @@ Subroutine cvmix_kpp_driver()
                                     vS=vS,                                    &
                                     uSbar=uSbar,                              &
                                     vSbar=vSbar,                              &
-                                    uS_SLD=cvmix_one,                         &
-                                    vS_SLD=cvmix_one,                         &
-                                    uSbar_SLD=cvmix_one,                      &
-                                    vSbar_SLD=cvmix_one,                      &
-                                    StokesXI=StokesXI)
+                                    uS_SL=cvmix_one,                          &
+                                    vS_SL=cvmix_one,                          &
+                                    uSb_SL=cvmix_one,                         &
+                                    vSb_SL=cvmix_one,                         &
+                                    StokesXI=StokesXI,                        &
+                                    BEdE_ER=BEdE_ER,                          &
+                                    PU_TKE=PU_TKE,                            &
+                                    PS_TKE=PS_TKE,                            &
+                                    PB_TKE=PB_TKE)
     call cvmix_kpp_compute_OBL_depth(Ri_bulk, zw_iface, OBL_depth7,           &
                                      kOBL_depth, zt, surf_fric=cvmix_one,     &
                                      surf_buoy=ones, Xi=ones)
