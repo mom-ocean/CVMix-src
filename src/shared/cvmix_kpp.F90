@@ -210,6 +210,9 @@
 
       real(cvmix_r8) :: CVt2              ! Tunable parameter for convection entrainment
                                           ! (Only used with StokesMOST)
+      real(cvmix_r8) :: ER_Cb             ! Entrainment Rule TKE buoyancy production weight [nondim]
+      real(cvmix_r8) :: ER_Cs             ! Entrainment Rule TKE Stokes production weight [nondim]
+      real(cvmix_r8) :: ER_Cu             ! Entrainment Rule TKE shear production weight [nondim]
 
   end type cvmix_kpp_params_type
 
@@ -229,7 +232,7 @@ contains
                             old_vals, lEkman, lStokesMOST, lMonOb, lnoDGat1,     &
                             lenhanced_diff, lnonzero_surf_nonlocal,              &
                             Langmuir_mixing_str, Langmuir_entrainment_str,       &
-                            l_LMD_ws, CVmix_kpp_params_user)
+                            l_LMD_ws, ER_Cb, ER_Cs, ER_Cu, CVmix_kpp_params_user)
 
 ! !DESCRIPTION:
 !  Initialization routine for KPP mixing.
@@ -247,7 +250,10 @@ contains
                                               zeta_s,                         &
                                               surf_layer_ext,                 &
                                               CVt2,                           &
-                                              Cv
+                                              Cv,                             &
+                                              ER_Cb,                          &
+                                              ER_Cs,                          &
+                                              ER_Cu
     character(len=*), optional, intent(in) :: interp_type,                    &
                                               interp_type2,                   &
                                               MatchTechnique,                 &
@@ -271,6 +277,7 @@ contains
 
     real(cvmix_r8) :: zm, zs, a_m, a_s, c_m, c_s
     real(cvmix_r8) :: Cstar_loc, vonkar_loc, surf_layer_ext_loc
+    real(cvmix_r8) :: ER_Cb_loc, ER_Cs_loc, ER_Cu_loc
     real(cvmix_r8) :: nonlocal_coeff
 
     if (present(ri_crit)) then
@@ -586,6 +593,24 @@ contains
     end if
 
     ! Initialize parameters for enhanced entrainment
+    if (present(ER_Cb)) then
+      ER_Cb_loc = ER_Cb
+    else
+      ER_Cb_loc = 0.96_cvmix_r8
+    end if
+    call cvmix_put_kpp('ER_Cb', ER_Cb_loc, CVmix_kpp_params_user)
+    if (present(ER_Cs)) then
+      ER_Cs_loc = ER_Cs
+    else
+      ER_Cs_loc = 0.038_cvmix_r8
+    end if
+    call cvmix_put_kpp('ER_Cs', ER_Cs_loc, CVmix_kpp_params_user)
+    if (present(ER_Cu)) then
+      ER_Cu_loc = ER_Cu
+    else
+      ER_Cu_loc = 0.023_cvmix_r8
+    end if
+    call cvmix_put_kpp('ER_Cu', ER_Cu_loc, CVmix_kpp_params_user)
     call cvmix_put_kpp('c_ST', 0.17_cvmix_r8, CVmix_kpp_params_user)
     call cvmix_put_kpp('c_CT', 0.15_cvmix_r8, CVmix_kpp_params_user)
     call cvmix_put_kpp('c_LT', 0.083_cvmix_r8, CVmix_kpp_params_user)
@@ -1335,6 +1360,12 @@ contains
         CVmix_kpp_params_out%CVt2 = val
       case ('nonlocal_coeff')
         CVmix_kpp_params_out%nonlocal_coeff = val
+      case ('ER_Cb')
+        CVmix_kpp_params_out%ER_Cb = val
+      case ('ER_Cs')
+        CVmix_kpp_params_out%ER_Cs = val
+      case ('ER_Cu')
+        CVmix_kpp_params_out%ER_Cu = val
       case ('c_CT')
         CVmix_kpp_params_out%c_CT = val
       case ('c_ST')
@@ -1519,6 +1550,12 @@ contains
         cvmix_get_kpp_real = CVmix_kpp_params_get%Cv
       case ('CVt2')
         cvmix_get_kpp_real = CVmix_kpp_params_get%CVt2
+      case ('ER_Cb')
+        cvmix_get_kpp_real = CVmix_kpp_params_get%ER_Cb
+      case ('ER_Cs')
+        cvmix_get_kpp_real = CVmix_kpp_params_get%ER_Cs
+      case ('ER_Cu')
+        cvmix_get_kpp_real = CVmix_kpp_params_get%ER_Cu
       case ('c_CT')
         cvmix_get_kpp_real = CVmix_kpp_params_get%c_CT
       case ('c_ST')
@@ -3411,9 +3448,6 @@ contains
     type(cvmix_kpp_params_type),  pointer :: CVmix_kpp_params_in
     real(cvmix_r8), parameter :: CempCGm = 3.5_cvmix_r8  ! Coeff. relating cross-shear mtm flux to sfc stress [nondim]
     real(cvmix_r8), parameter :: CempCGs = 4.7_cvmix_r8  ! Coeff. relating non-local scalar flux to sfc flux  [nondim]
-    real(cvmix_r8), parameter :: Cu = 0.023_cvmix_r8     ! TKE shear production weight [nondim]
-    real(cvmix_r8), parameter :: Cs = 0.038_cvmix_r8     ! TKE Stokes production weight [nondim]
-    real(cvmix_r8), parameter :: Cb = 0.96_cvmix_r8      ! TKE buoyancy production weight [nondim]
     real(cvmix_r8) :: PBfact                  ! Ratio of TKE surface layer production to w*^3 [nondim]
     real(cvmix_r8) :: PU, PS , PB             ! Surface layer TKE production terms increments [m3 s-3]
     real(cvmix_r8) :: ustar, delH, delU, delV, omega_E2x, cosOmega, sinOmega
@@ -3512,7 +3546,8 @@ contains
     else
       StokesXI = cvmix_zero
     endif
-    BEdE_ER  = MAX( ( Cu*PU + Cs*PS + Cb*PB ) , cvmix_zero )
+    BEdE_ER  = MAX( ( CVmix_kpp_params_in%ER_Cu*PU + CVmix_kpp_params_in%ER_Cs*PS + &
+                      CVmix_kpp_params_in%ER_Cb*PB ) , cvmix_zero )
     PU_TKE   = PU
     PS_TKE   = PS
     PB_TKE   = PB
